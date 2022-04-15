@@ -28,11 +28,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.doguhanay.cevrecicopler.internet.ApiUtils
 import com.doguhanay.cevrecicopler.internet.DaoInterface
 import com.doguhanay.cevrecicopler.internet.GirisCevap
+import com.doguhanay.cevrecicopler.internet.KayitCevap
 import com.doguhanay.cevrecicopler.ui.theme.Shapes
 import com.doguhanay.cevrecicopler.ui.theme.ÇevreciÇöplerTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -47,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    GirisEkrani()
+                    SayfaGecisleri()
                 }
             }
         }
@@ -58,13 +69,34 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DefaultPreview() {
     ÇevreciÇöplerTheme {
-        GirisEkrani()
+
     }
 }
 
 @Composable
-fun GirisEkrani() {
+fun SayfaGecisleri() {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "girisekrani") {
+        composable("girisekrani") {
+            GirisEkrani(navController = navController)
+        }
+        composable("kayitekrani") {
+            KayitEkrani(navController = navController)
+        }
+        composable(
+            "kayitaktiflestirme/{mail}",
+            arguments = listOf(navArgument("mail") { type = NavType.StringType })
+        ) {
+            val mail = it.arguments?.getString("mail")!!
+            KayitAktifEt(mail = mail)
+        }
+    }
+}
+
+@Composable
+fun GirisEkrani(navController: NavController) {
     val context = LocalContext.current
+    var sayfaKontrol = remember { mutableStateOf(true) }
     var kadi = remember { mutableStateOf("") }
     var sifre = remember { mutableStateOf("") }
     Column(
@@ -77,7 +109,7 @@ fun GirisEkrani() {
         ) {
         Image(
             painter = painterResource(id = R.drawable.giris_ekran_resim),
-            contentDescription = "Giris_ekran_resim",
+            contentDescription = "giris_ekran_resim",
             modifier = Modifier
                 .size(200.dp)
                 .weight(1f)
@@ -127,7 +159,7 @@ fun GirisEkrani() {
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(onClick = {
 
-                        girisYap(kadi.value.toString(),sifre.value.toString(),context)
+                        girisYap(kadi.value.toString(), sifre.value.toString(), context)
                     }) {
                         Text(text = "Giris Yap")
                     }
@@ -137,7 +169,13 @@ fun GirisEkrani() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         ClickableText(text = AnnotatedString("Şifremi Unuttum"), onClick = {})
-                        ClickableText(text = AnnotatedString("Kayıt Ol"), onClick = {})
+                        ClickableText(text = AnnotatedString("Kayıt Ol"), onClick = {
+                            if (sayfaKontrol.value) {
+                                navController.navigate("kayitekrani")
+                                sayfaKontrol.value = false
+                                //text = "Disabled"
+                            }
+                        })
 
                     }
                 }
@@ -148,26 +186,26 @@ fun GirisEkrani() {
     }
 }
 
-fun girisYap(kullanici_adi:String,kullanici_sifre:String,context:Context){
+fun girisYap(kullanici_adi: String, kullanici_sifre: String, context: Context) {
 
     val daoInterface = ApiUtils.getDaoInterface()
+    daoInterface.girisYap(kullanici_adi, kullanici_sifre).enqueue(object : Callback<KayitCevap> {
+        override fun onResponse(call: Call<KayitCevap>, response: Response<KayitCevap>) {
 
-    daoInterface.girisYap(kullanici_adi,kullanici_sifre).enqueue(object : Callback<GirisCevap>{
-        override fun onResponse(call: Call<GirisCevap>, response: Response<GirisCevap>) {
-
-            //TODO
-
-            if (response.body().kullanici_adi==null){
-                Toast.makeText(context,"Giriş yapılamıyor",Toast.LENGTH_SHORT).show()
-                Log.e("giris1",response.body().toString())
-            }else{
-                Toast.makeText(context,"Giriş Yapılıyor",Toast.LENGTH_SHORT).show()
+            Log.e("giris1", response.body().toString())
+            if (response.body().result.equals("Giris basarisiz")) {
+                Toast.makeText(context, "Giriş yapılamıyor", Toast.LENGTH_SHORT).show()
+                Log.e("giris1", response.body().toString())
+            } else if (response.body().result.equals("Giris basarili")) {
+                Toast.makeText(context, "Giriş Yapılıyor", Toast.LENGTH_SHORT).show()
             }
         }
 
-        override fun onFailure(call: Call<GirisCevap>?, t: Throwable?) {
+        override fun onFailure(call: Call<KayitCevap>?, t: Throwable?) {
             Log.e("giris", t?.message.toString())
         }
     })
+
+
 }
 
