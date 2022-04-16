@@ -1,6 +1,5 @@
 package com.doguhanay.cevrecicopler.internet
 
-import retrofit.RxJavaCallAdapterFactory
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
