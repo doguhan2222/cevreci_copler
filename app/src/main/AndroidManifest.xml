@@ -15,7 +15,7 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AppCompat.NoActionBar">
         <meta-data android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCiMnx5iIBkq0en56dvjqcaQMqjQJShjhM"/>
+            android:value="**********"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
