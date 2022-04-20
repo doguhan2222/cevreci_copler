@@ -4,6 +4,7 @@ import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface DaoInterface {
@@ -28,4 +29,12 @@ interface DaoInterface {
         @Field("kullanici_mail") kullanici_mail:String,
         @Field("kullanici_kod") kullanici_kod:String
     ):Call<KayitCevap>
+    @POST("cevreci_konum_kaydet.php")
+    @FormUrlEncoded
+    fun konumKaydet(
+        @Field("kullanici_konum_lat") kullanici_lat:String,
+        @Field("kullanici_konum_long") kullanici_long:String
+    ):Call<KayitCevap>
+    @GET("cevreci_haritada_konumlari_goster.php")
+    fun konumlariAl():Call<List<TumKonumlarCevap>>
 }

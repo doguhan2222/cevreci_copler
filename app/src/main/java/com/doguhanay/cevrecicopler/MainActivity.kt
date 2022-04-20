@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Bundle
-import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -40,8 +39,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.doguhanay.cevrecicopler.internet.ApiUtils
 import com.doguhanay.cevrecicopler.internet.KayitCevap
+import com.doguhanay.cevrecicopler.internet.TumKonumlarCevap
 import com.doguhanay.cevrecicopler.ui.theme.ÇevreciÇöplerTheme
 import com.google.android.gms.location.*
+import com.google.gson.Gson
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -101,10 +102,11 @@ fun getLastLocation(context: Context) {
             fusedLocationProviderClient.lastLocation.addOnCompleteListener { task ->
                 var location: Location? = task.result
                 if (location == null) {
-                    NewLocationData(context)
+                    //NewLocationData(context)
                 } else {
                     latitude = location.latitude.toString()
                     longitude = location.longitude.toString()
+
                     Log.d(
                         "Debug1:",
                         " lat " + location.latitude.toString() + " long: " + location.longitude.toString()
@@ -120,7 +122,7 @@ fun getLastLocation(context: Context) {
     }
 }
 
-fun NewLocationData(context: Context) {
+/*fun NewLocationData(context: Context) {
     var locationRequest = LocationRequest()
     locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
     locationRequest.interval = 0
@@ -141,7 +143,7 @@ fun NewLocationData(context: Context) {
     fusedLocationProviderClient!!.requestLocationUpdates(
         locationRequest, locationCallback, Looper.myLooper()
     )
-}
+}*/
 
 private val locationCallback = object : LocationCallback() {
     override fun onLocationResult(locationResult: LocationResult) {
@@ -216,20 +218,33 @@ fun SayfaGecisleri() {
             GirisEkrani(navController = navController)
         }
         composable(
-            "kayitekrani") {
+            "kayitekrani"
+        ) {
             KayitEkrani(navController = navController)
         }
+        // list olarak gönderemediğimiz için önce sınıfa sonra json a sonra da sınıfa çevirdik
         composable(
+            "sifremiunuttum/{nesne}",
+            arguments = listOf(
+                navArgument("nesne") { type = NavType.StringType }
+            )
+        ) {
+            var json = it.arguments?.getString("nesne")
+            val nesne = Gson().fromJson(json,KonumlarListClass::class.java)
+            KonumuGoster(nesne)
+        }
+        // konum kaydederken bu navı oluştur
+        /*composable(
             "sifremiunuttum/{latitude}/{longitude}",
             arguments = listOf(
                 navArgument("latitude") { type = NavType.StringType },
-                navArgument("longitude") { type = NavType.StringType })
+                navArgument("longitude") { type = NavType.StringType }
+            )
         ) {
             var latitude = it.arguments?.getString("latitude")!!
             var longitude = it.arguments?.getString("longitude")!!
-
             KonumuGoster(lat = latitude, long = longitude)
-        }
+        }*/
         composable(
             "kayitaktiflestirme/{mail}",
             arguments = listOf(navArgument("mail") { type = NavType.StringType })
@@ -316,8 +331,44 @@ fun GirisEkrani(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         ClickableText(text = AnnotatedString("Şifremi Unuttum"), onClick = {
-                            Log.e("aaaa","$latitude"+" "+"$longitude")
-                            navController.navigate("sifremiunuttum/$latitude/$longitude")
+                            //konumKaydet(latitude, longitude)
+                            //konumAl()
+                            //navController.navigate("sifremiunuttum/$latitude/$longitude")
+
+                            //---------------------------------------------------------------
+                            /*
+                            Webddeki tüm kayitları alır ve listeye atar.Daha sonra bu listeyi
+                            2 ayrı lang ve long listesine ayırır ve bunları KonumlarList class ına çevirir
+                            daha sonrada nav işlemleri için gönderir.Bu fonk sayesinde tüm konumlar listelenir
+                            */
+
+                            val daoInterface = ApiUtils.getDaoInterface()
+                            daoInterface.konumlariAl().enqueue(object : Callback<List<TumKonumlarCevap>> {
+                                override fun onResponse(
+                                    call: Call<List<TumKonumlarCevap>>,
+                                    response: Response<List<TumKonumlarCevap>>
+                                ) {
+                                    val liste = response.body()
+
+                                    var listelaaang:MutableList<String> = mutableListOf()
+                                    var listelooong:MutableList<String> = mutableListOf()
+
+                                    for (k in liste.indices) {
+                                        listelaaang.add(liste[k].klat)
+                                        listelooong.add(liste[k].klong)
+                                    }
+                                    val dataclass = KonumlarListClass(listelaaang,listelooong)
+                                    val dataclassjson = Gson().toJson(dataclass)
+                                    navController.navigate("sifremiunuttum/$dataclassjson")
+                                }
+                                //--------------------------------------------------
+
+                                override fun onFailure(call: Call<List<TumKonumlarCevap>>, t: Throwable) {
+
+                                }
+                            })
+
+
                         })
                         ClickableText(text = AnnotatedString("Kayıt Ol"), onClick = {
                             if (sayfaKontrol.value) {
@@ -337,21 +388,18 @@ fun GirisEkrani(navController: NavController) {
 }
 
 fun girisYap(kullanici_adi: String, kullanici_sifre: String, context: Context) {
-
     val daoInterface = ApiUtils.getDaoInterface()
     daoInterface.girisYap(kullanici_adi, kullanici_sifre).enqueue(object : Callback<KayitCevap> {
         override fun onResponse(call: Call<KayitCevap>, response: Response<KayitCevap>) {
-
-            Log.e("giris1", response.body().toString())
             if (response.body().result.equals("Giris basarisiz")) {
                 Toast.makeText(context, "Giriş yapılamıyor", Toast.LENGTH_SHORT).show()
                 Log.e("giris1", response.body().toString())
+
             } else if (response.body().result.equals("Giris basarili")) {
                 Toast.makeText(context, "Giriş Yapılıyor", Toast.LENGTH_SHORT).show()
 
             }
         }
-
 
         override fun onFailure(call: Call<KayitCevap>?, t: Throwable?) {
             Log.e("giris", t?.message.toString())
@@ -361,3 +409,18 @@ fun girisYap(kullanici_adi: String, kullanici_sifre: String, context: Context) {
 
 }
 
+//bu fonksiyonu ilanı oluştururken kullan
+fun konumKaydet(klat: String, klong: String) {
+    val daoInterface = ApiUtils.getDaoInterface()
+    daoInterface.konumKaydet(klat, klong).enqueue(object : Callback<KayitCevap> {
+        override fun onResponse(call: Call<KayitCevap>, response: Response<KayitCevap>) {
+            if (response.body().result.equals("Kayit basarili")) {
+                Log.e("konum", "$klat   +  $klong")
+            }
+        }
+
+        override fun onFailure(call: Call<KayitCevap>, t: Throwable) {
+            Log.e("konum", t.message.toString())
+        }
+    })
+}
